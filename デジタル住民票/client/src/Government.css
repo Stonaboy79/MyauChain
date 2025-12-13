@@ -1,0 +1,49 @@
+.government-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+    text-align: center;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    color: #333;
+}
+
+.government-container input[type="text"],
+.government-container input[type="file"] {
+    display: block;
+    width: 100%;
+    max-width: 400px;
+    margin: 10px auto;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.government-container button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1rem;
+    margin-top: 10px;
+}
+
+.government-container button:hover {
+    background-color: #0056b3;
+}
+
+.government-container button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+.government-container form {
+    margin-bottom: 30px;
+    padding: 20px;
+    background: #f9f9f9;
+    border-radius: 8px;
+    display: inline-block;
+    width: 100%;
+    max-width: 500px;
+}
