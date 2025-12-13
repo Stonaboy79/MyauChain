@@ -21,3 +21,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+
+# Sui binaries / Large files
+**/*sui-debug
+**/*sui-node
+**/*sui-cli.tgz
+**/*sui-tool
