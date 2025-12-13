@@ -1,0 +1,20 @@
+{
+  "dependencies": {
+    "@mysten/sui.js": "^0.54.1",
+    "@openzeppelin/contracts": "^5.4.0",
+    "ethers": "^6.16.0",
+    "hardhat-deploy": "^1.0.4",
+    "hardhat-ethers": "^1.0.1",
+    "solc": "^0.8.31"
+  },
+  "name": "myauchain",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": ""
+}

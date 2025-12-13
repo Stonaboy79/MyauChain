@@ -1,0 +1,56 @@
+<!----------------------------------------------------------------------------------------------------------------------->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Item Purchase</title>
+    <link rel="stylesheet" href="style2.css"> <!-- CSSファイルのリンクを追加 -->
+</head>
+<!----------------------------------------------------------------------------------------------------------------------->
+<body>
+    <div class="wrapper" id="wrapper"></div> <!-- 背景を表示するためのコンテナ -->
+    <div class="content-wrapper">
+<!----------------------------------------------------------------------------------------------------------------------->
+        <h1>販売中のすべてのアイテム</h1>
+        <div class="product-container"> <!-- 商品を横並びにするためのコンテナ -->
+            <div class="product">
+                <h3>商品①</h3>
+                <p>・クラフトビール 500ml</p>
+                <p>◻︎ 500 MEOW</p>
+                <button id="iemon_purchaseButton">購入</button>
+            </div>
+
+            <div class="product">
+                <h3>商品②</h3>
+                <p>・天然水 500ml</p>
+                <p>◻︎ 300 MEOW</p>
+                <button id="tennensui_purchaseButton">購入</button>
+            </div>
+        </div>
+<!----------------------------------------------------------------------------------------------------------------------->
+        <div class="product-container"> <!-- 商品を横並びにするためのコンテナ -->
+            <div class="product">
+                <h3>商品③</h3>
+                <p>・米 20kg</p>
+                <p>◻︎ 4000 MEOW</p>
+                <button id="craftBoss_purchaseButton">購入</button>
+            </div>
+            
+            <div class="product">
+                <h3>商品④</h3>
+                <p>・梅酒 750ml</p>
+                <p>◻︎ 3000 MEOW</p>
+                <button id="yamazakiUme_purchaseButton">購入</button>
+            </div>
+        </div>
+<!----------------------------------------------------------------------------------------------------------------------->
+        <br>
+        <button id="backHome">戻る</button>
+    </div>
+<!----------------------------------------------------------------------------------------------------------------------->
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    <script src="./js/app.js"></script>
+</body>
+</html>
+<!----------------------------------------------------------------------------------------------------------------------->

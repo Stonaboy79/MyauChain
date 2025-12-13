@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+
+    --primary: 252 59% 48%;
+    /* Vibrant Purple */
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --radius: 0.5rem;
+  }
+}
+
+body {
+  @apply bg-background text-foreground font-sans antialiased;
+  background-image: radial-gradient(circle at 50% 0%, #f0f9ff 0%, #e0e7ff 75%);
+  min-height: 100vh;
+}
+
+/* Glassmorphism utilities */
+.glass {
+  @apply bg-white/60 backdrop-blur-lg border border-white/40 shadow-sm;
+}
+
+.glass-card {
+  @apply glass rounded-xl p-6 shadow-xl hover:bg-white/80 transition-all duration-300;
+}
+
+.input-field {
+  @apply bg-white/50 border border-gray-200 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all w-full placeholder:text-muted-foreground text-foreground;
+}
+
+.btn-primary {
+  @apply bg-primary hover:bg-primary/90 text-primary-foreground font-medium px-6 py-3 rounded-lg transition-all duration-300 shadow-lg shadow-primary/25 hover:shadow-primary/40 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
+}

@@ -1,0 +1,21 @@
+{
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.23.25",
+    "leaflet": "^1.9.4",
+    "lucide-react": "^0.555.0",
+    "react-confetti": "^6.4.0",
+    "react-hot-toast": "^2.6.0",
+    "react-leaflet": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/leaflet": "^1.9.21",
+    "@types/node": "^25.0.1",
+    "vite": "^7.2.7"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  }
+}

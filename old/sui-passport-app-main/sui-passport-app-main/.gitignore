@@ -1,0 +1,12 @@
+node_modules
+.DS_Store
+dist
+.env
+.venv
+venv
+*.xls
+*.xlsx
+randomf
+randomf_fixed
+randomf_debug
+*.o

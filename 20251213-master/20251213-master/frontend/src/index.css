@@ -1,0 +1,227 @@
+@import "tailwindcss";
+
+/* =========================
+   ベースレイアウト
+   ========================= */
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+/* =========================
+   Leafletマップ用
+   ========================= */
+.leaflet-container {
+  width: 100%;
+  height: 50%;
+  z-index: 0;
+  border-radius: 1rem;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.08);
+  min-height: 300px;
+  overflow: hidden;
+}
+
+/* =========================
+   チェックイントークン表示
+   ========================= */
+.token-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #eff6ff;
+  border-radius: 1rem;
+  padding: 1rem 1.5rem;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.08);
+  margin-bottom: 1.5rem;
+}
+
+.token-count {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #2563eb;
+}
+
+.token-label {
+  font-size: 1rem;
+  color: #64748b;
+  margin-left: 0.5rem;
+}
+
+.km {
+  font-size: 1.1rem;
+  color: #64748b;
+  margin-left: 0.5rem;
+}
+
+
+.minute {
+  font-size: 1.1rem;
+  color: #64748b;
+  margin-left: 0.5rem;
+}
+
+.status-icon-success {
+  color: #4ade80;
+}
+
+.status-icon-idle {
+  color: #60a5fa;
+}
+
+/* =========================
+   チェックインボタン
+   ========================= */
+.checkin-btn {
+  position: 50%;
+  width: 100%;
+  padding: 0.6rem 0;
+  border-radius: 0.4rem;
+  font-weight: bold;
+  font-size: 1rem;
+  background: #424449;
+  color: #fff;
+  transition: background 0.2s;
+  border: none;
+  cursor: pointer;
+  margin-top: 1.5rem;
+}
+
+.checkin-btn:hover:not(:disabled) {
+  background: #626468;
+}
+
+.checkin-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* =========================
+   コンフェッティ
+   ========================= */
+.confetti {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+/* =========================
+   メッシュグラデーションアニメーション
+   ========================= */
+@keyframes gradient-xy {
+
+  0%,
+  100% {
+    background-size: 400% 400%;
+    background-position: 0% 0%;
+  }
+
+  25% {
+    background-size: 400% 400%;
+    background-position: 100% 0%;
+  }
+
+  50% {
+    background-size: 400% 400%;
+    background-position: 100% 100%;
+  }
+
+  75% {
+    background-size: 400% 400%;
+    background-position: 0% 100%;
+  }
+}
+
+.bg-mesh {
+  /* Tailwindで設定された背景を上書き */
+  background:
+    radial-gradient(at 0% 0%, #dcf1ff 0, transparent 50%),
+    radial-gradient(at 50% 0%, #f3e8ff 0, transparent 50%),
+    radial-gradient(at 100% 0%, #dbeafe 0, transparent 50%);
+  background-color: #fff;
+}
+
+@media (max-width: 430px) {
+
+  .glass-panel {
+    border-radius: 40px;
+    /* 親要素のスタイルを維持 */
+    box-sizing: border-box;
+  }
+
+  .glass-tab {
+
+    font-size: 1.1rem;
+    border-radius: 0 0 0 0;
+    /* 下部ナビゲーションなので角丸を削除 */
+    box-sizing: border-box;
+
+  }
+
+  .token-box {
+    padding: 0.75rem 1rem;
+    font-size: 1.1rem;
+  }
+
+  .checkin-btn {
+    font-size: 1rem;
+    padding: 0.75rem 0;
+  }
+
+  body {
+    font-size: 1.05rem;
+  }
+
+  .distance-timer-display {
+
+    border-radius: 0;
+    /* 親コンテナの幅全体を使うため角丸は不要 */
+    padding: 8px 0;
+    /* JSXの p-2 (8px) を維持 */
+    z-index: 20;
+    /* ヘッダーの下になるよう調整 */
+    font-size: 0.75rem;
+    /* JSX側の text-xs (12px) を維持 */
+    color: #fff;
+    /* JSX側の text-white を維持 */
+    width: 100%;
+    /* 親要素の幅全体を使用 */
+    text-align: center;
+    font-weight: 600;
+    /* JSX側の font-semibold を維持 */
+    letter-spacing: 0.01em;
+  }
+
+  /* タイマー内の子要素のスタイルを削除し、Tailwindで制御します */
+  .distance-timer-display>div {
+    margin-bottom: 0;
+  }
+}
+
+/* =========================
+   Login styles from locus-main
+   ========================= */
+
+/* Glassmorphism utilities */
+.glass {
+  @apply bg-white/60 backdrop-blur-lg border border-white/40 shadow-sm;
+}
+
+.glass-card {
+  @apply bg-white/60 backdrop-blur-lg border border-white/40 rounded-xl p-6 shadow-xl hover:bg-white/80 transition-all duration-300;
+}
+
+/* Updated Colors to match Resident App theme (Blue/Purple) */
+.input-field {
+  @apply bg-white/50 border border-gray-200 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all w-full placeholder:text-slate-400 text-slate-900;
+}
+
+.btn-primary {
+  @apply bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-3 rounded-lg transition-all duration-300 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
+}
