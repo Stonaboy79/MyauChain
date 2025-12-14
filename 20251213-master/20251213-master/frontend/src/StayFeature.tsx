@@ -124,6 +124,7 @@ export const StayFeature: React.FC<StayFeatureProps> = ({
   const [status, setStatus] = useState<'idle' | 'locating' | 'signing' | 'submitting' | 'success'>('idle');
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [stayId, setStayId] = useState<number | null>(null);
 
   useEffect(() => {
     if (account && tokenCount === 0) {
@@ -217,7 +218,28 @@ export const StayFeature: React.FC<StayFeatureProps> = ({
       await signAndExecuteTransaction(
         { transaction: tx },
         {
-          onSuccess: () => {
+          onSuccess: async () => {
+            // Backend API Checkin
+            if (account) {
+              try {
+                const res = await fetch('http://localhost:3001/api/checkin', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    userAddress: account.address,
+                    lat: checkinLocation.lat,
+                    lng: checkinLocation.lng
+                  })
+                });
+                const data = await res.json();
+                if (data.success && data.stayId) {
+                  setStayId(data.stayId);
+                }
+              } catch (e) {
+                console.error('API Checkin failed', e);
+              }
+            }
+
             setStatus('success');
 
             // チェックイン成功報酬 (1トークン) の加算
@@ -242,9 +264,28 @@ export const StayFeature: React.FC<StayFeatureProps> = ({
     }
   };
 
-  // 計測終了ハンドラ (変更なし)
-  const handleStopMeasurement = () => {
-    const bonusReward = calculateBonusReward(elapsed);
+  // 計測終了ハンドラ
+  const handleStopMeasurement = async () => {
+    let bonusReward = calculateBonusReward(elapsed);
+
+    if (stayId && account) {
+      try {
+        const res = await fetch('http://localhost:3001/api/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            stayId: stayId,
+            userAddress: account.address
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          bonusReward = data.tokensEarned;
+        }
+      } catch (e) {
+        console.error('API Checkout failed', e);
+      }
+    }
 
     setTokenCount((prev) => prev + bonusReward);
 
@@ -255,6 +296,7 @@ export const StayFeature: React.FC<StayFeatureProps> = ({
 
     setStatus('idle'); // status を idle に戻す
     setShowConfetti(false);
+    setStayId(null);
   };
 
   const shouldDisplayDistance = checkedIn || distance > 0;
