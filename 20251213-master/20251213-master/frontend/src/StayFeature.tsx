@@ -266,30 +266,63 @@ export const StayFeature: React.FC<StayFeatureProps> = ({
 
   // 計測終了ハンドラ
   const handleStopMeasurement = async () => {
-    let bonusReward = calculateBonusReward(elapsed);
+    // 1. Get current position for Checkout
+    let checkoutLat = location?.lat;
+    let checkoutLng = location?.lng;
+
+    try {
+      const pos = await getPosition();
+      checkoutLat = pos.coords.latitude;
+      checkoutLng = pos.coords.longitude;
+    } catch (e) {
+      console.warn("Checkout GPS update failed, using last known", e);
+    }
+
+    let bonusReward = calculateBonusReward(elapsed); // Client-side fallback default
 
     if (stayId && account) {
+      if (checkoutLat === undefined || checkoutLng === undefined) {
+        toast.error("位置情報が取得できないため、正確なチェックアウトができません。");
+        // We continue but might fail on server or just send what we have? 
+        // If we don't return here, we send undefined which fails server check.
+      }
+
       try {
         const res = await fetch('http://localhost:3001/api/checkout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             stayId: stayId,
-            userAddress: account.address
+            userAddress: account.address,
+            lat: checkoutLat,
+            lng: checkoutLng
           })
         });
         const data = await res.json();
+
         if (data.success) {
           bonusReward = data.tokensEarned;
+          toast.success(`ボーナスとして ${bonusReward} トークンを獲得しました！`);
+        } else {
+          // Failed (e.g. moved too far)
+          bonusReward = 0;
+          toast.error(data.message || "チェックアウトエラー: 条件を満たしていません");
         }
       } catch (e) {
         console.error('API Checkout failed', e);
+        toast.error("サーバーとの通信に失敗しました。");
+        // We do NOT want to give free tokens on network error if we are strict.
+        // But for now let's leave bonusReward as calculated by client? 
+        // No, if check-in was server-side, verify should be too.
+        // But original code fell back to client calc. I'll stick to new strict logic:
+        bonusReward = 0;
       }
+    } else {
+      // Not logged in or no StayId -> Client side simulation
+      toast.success(`(デモ) ボーナスとして ${bonusReward} トークンを獲得しました！`);
     }
 
     setTokenCount((prev) => prev + bonusReward);
-
-    toast.success(`ボーナスとして ${bonusReward} トークンを獲得しました！`);
 
     // 親コンポーネントで checkedIn=false となり、distance/elapsed がリセットされる
     onStopMeasurement();
