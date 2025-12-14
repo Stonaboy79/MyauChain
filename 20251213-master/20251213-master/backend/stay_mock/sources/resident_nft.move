@@ -19,6 +19,7 @@ module resident_nft::stay_feature {
     }
 
     /// フロントエンドから呼ばれる関数
+    #[allow(lint(public_entry))]
     public entry fun stay(
         lat: u64,
         lng: u64,

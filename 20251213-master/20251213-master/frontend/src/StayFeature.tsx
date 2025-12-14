@@ -35,12 +35,8 @@ const playSuccessSound = () => {
 };
 
 const calculateBonusReward = (elapsed: number): number => {
-  if (elapsed < 60) {
-    return 10;
-  }
-  else {
-    return 20;
-  }
+  // 1 second = 0.1 Token
+  return Math.floor(elapsed * 0.1 * 10) / 10;
 };
 
 // 型定義

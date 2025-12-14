@@ -1,25 +1,27 @@
 import React, { useState, useEffect, useRef } from 'react';
-import Web3 from 'web3';
-import CountryNFT from '../abis/CountryNFT.json';
-import { ConnectButton } from '@mysten/dapp-kit'; // Keep ConnectButton if needed for consistency, or just use MetaMask
-import { User, QrCode, ShieldCheck, Sparkles, Upload, Camera, Trash2, Search, RefreshCw } from 'lucide-react';
+import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from '@mysten/dapp-kit';
+import { Transaction } from '@mysten/sui/transactions';
+import { User, ShieldCheck, Sparkles, Camera, Trash2, RefreshCw } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
-const PINATA_JWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySW5mb3JtYXRpb24iOnsiaWQiOiI1ODE0YTViYi1lYjA0LTQ2ZTMtYjQ4ZC1jZWQ5ZjM3MmM2YTkiLCJlbWFpbCI6InlvZG9nYXdhY2hhcmdlQGhvdG1haWwuY28uanAiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwicGluX3BvbGljeSI6eyJyZWdpb25zIjpbeyJkZXNpcmVkUmVwbGljYXRpb25Db3VudCI6MSwiaWQiOiJGUkExIn0seyJkZXNpcmVkUmVwbGljYXRpb25Db3VudCI6MSwiaWQiOiJOWUMxIn1dLCJ2ZXJzaW9uIjoxfSwibWZhX2VuYWJsZWQiOmZhbHNlLCJzdGF0dXMiOiJBQ1RJVkUifSwiYXV0aGVudGljYXRpb25UeXBlIjoic2NvcGVkS2V5Iiwic2NvcGVkS2V5S2V5IjoiM2RkNWYyZjQzZDg3N2NiNGNmZDYiLCJzY29wZWRLZXlTZWNyZXQiOiI0NjQzOGFlYjBjNTM3NDdkMjhkYjUyOTM1MTQ5ZGI1NDA2MWJhOWRmYmJiYmEzNzgwMjRkMGFkYzdhMWZmY2E2IiwiZXhwIjoxNzk2MDU5OTIzfQ.PIZimQpd_prVf7IE_l4ca3L3PuFvUkbzzvxHujSFUY8";
+// Deployed Package ID
+const RESIDENT_CARD_PACKAGE_ID = "0x4c94cff97d1494d6d717aaf76bdb67a190791f0926f487f6f69c793db6d05252";
+const RESIDENT_CARD_MODULE_NAME = "card";
+const RESIDENT_CARD_TYPE = `${RESIDENT_CARD_PACKAGE_ID}::${RESIDENT_CARD_MODULE_NAME}::ResidentCard`;
 
-// Define strict types for window to avoid TS errors
-declare global {
-    interface Window {
-        ethereum?: any;
-        web3?: any;
-    }
-}
+// Correct JWT from 'デジタル住民票/Pinata' (contains 'scopedKeyKey' which matches signature)
+const PINATA_JWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySW5mb3JtYXRpb24iOnsiaWQiOiI1ODE0YTViYi1lYjA0LTQ2ZTMtYjQ4ZC1jZWQ5ZjM3MmM2YTkiLCJlbWFpbCI6InlvZG9nYXdhY2hhcmdlQGhvdG1haWwuY28uanAiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwicGluX3BvbGljeSI6eyJyZWdpb25zIjpbeyJkZXNpcmVkUmVwbGljYXRpb25Db3VudCI6MSwiaWQiOiJGUkExIn0seyJkZXNpcmVkUmVwbGljYXRpb25Db3VudCI6MSwiaWQiOiJOWUMxIn1dLCJ2ZXJzaW9uIjoxfSwibWZhX2VuYWJsZWQiOmZhbHNlLCJzdGF0dXMiOiJBQ1RJVkUifSwiYXV0aGVudGljYXRpb25UeXBlIjoic2NvcGVkS2V5Iiwic2NvcGVkS2V5S2V5IjoiM2RkNWYyZjQzZDg3N2NiNGNmZDYiLCJzY29wZWRLZXlTZWNyZXQiOiI0NjQzOGFlYjBjNTM3NDdkMjhkYjUyOTM1MTQ5ZGI1NDA2MWJhOWRmYmJiYmEzNzgwMjRkMGFkYzdhMWZmY2E2IiwiZXhwIjoxNzk2MDU5OTIzfQ.PIZimQpd_prVf7IE_l4ca3L3PuFvUkbzzvxHujSFUY8";
 
 type ViewMode = 'list' | 'issue';
 
 export const ResidentCard: React.FC = () => {
     const [viewMode, setViewMode] = useState<ViewMode>('list');
-    const [account, setAccount] = useState("");
+
+    // Sui Hooks
+    const account = useCurrentAccount();
+    const suiClient = useSuiClient();
+    const { mutateAsync: signAndExecuteTransaction } = useSignAndExecuteTransaction();
+
     const [myNFTs, setMyNFTs] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(false);
 
@@ -32,79 +34,42 @@ export const ResidentCard: React.FC = () => {
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
-        loadWeb3();
-        loadBlockchainData();
-
-        if (window.ethereum) {
-            window.ethereum.on("accountsChanged", function (accounts: string[]) {
-                setAccount(accounts[0]);
-                window.location.reload();
-            });
+        if (account) {
+            // NOTE: Address auto-fill removed
+            loadBlockchainData();
+        } else {
+            setMyNFTs([]);
         }
-    }, []);
-
-    const loadWeb3 = async () => {
-        if (window.ethereum) {
-            window.web3 = new Web3(window.ethereum);
-            try {
-                // Request account access if needed
-                await window.ethereum.request({ method: "eth_requestAccounts" });
-            } catch (error) {
-                console.error("User denied account access");
-            }
-        }
-    };
+    }, [account, suiClient]);
 
     const loadBlockchainData = async () => {
+        if (!account) return;
         setIsLoading(true);
-        const web3 = window.web3;
-        if (!web3) {
-            setIsLoading(false);
-            return;
-        }
 
         try {
-            const accounts = await web3.eth.getAccounts();
-            setAccount(accounts[0]);
-
-            const contractAddress = "0x522307093BA5A31c5EBfeE26Fa4d6fA52546Ccdb";
-            const contract = new web3.eth.Contract(CountryNFT.abi, contractAddress);
-
-            // Fetch NFTs logic (ported from Mypage.js)
-            const events = await contract.getPastEvents("Transfer", {
-                fromBlock: 0,
-                toBlock: "latest",
+            const result = await suiClient.getOwnedObjects({
+                owner: account.address,
+                filter: { StructType: RESIDENT_CARD_TYPE },
+                options: { showContent: true, showDisplay: true },
             });
-
-            const myEvents = events.filter((e: any) => e.returnValues.to.toLowerCase() === accounts[0].toLowerCase());
-            const tokenIds = [...new Set(myEvents.map((e: any) => e.returnValues.tokenId.toString()))];
 
             const nftList = [];
             const hiddenNFTs = JSON.parse(localStorage.getItem("hiddenNFTs") || "[]");
 
-            for (let id of tokenIds) {
-                // @ts-ignore
+            for (const obj of result.data) {
+                const id = obj.data?.objectId;
+                if (!id) continue;
                 if (hiddenNFTs.includes(id)) continue;
 
-                try {
-                    const owner: string = await contract.methods.ownerOf(id).call();
-                    if (owner.toLowerCase() !== accounts[0].toLowerCase()) continue;
-
-                    // Find the acquisition event for transaction hash
-                    const acquisitionEvent = myEvents.find((e: any) => e.returnValues.tokenId.toString() === id);
-                    const transactionHash = acquisitionEvent ? acquisitionEvent.transactionHash : "Unknown";
-
-                    const tokenURI: string = await contract.methods.tokenURI(id).call();
-                    let metadata = {};
-                    try {
-                        const res = await fetch(tokenURI);
-                        metadata = await res.json();
-                    } catch (e) {
-                        metadata = { name: "Error fetching metadata", image: null };
-                    }
-                    nftList.push({ tokenId: id, transactionHash, ...metadata });
-                } catch (e) {
-                    console.error(`Error processing ID ${id}:`, e);
+                if (obj.data?.content?.dataType === "moveObject") {
+                    const fields = (obj.data.content.fields as any);
+                    nftList.push({
+                        tokenId: id,
+                        name: fields.name,
+                        image: fields.image_url,
+                        address: fields.user_address,
+                        transactionHash: obj.data.digest // Use digest as proxy for tx hash ref
+                    });
                 }
             }
             setMyNFTs(nftList);
@@ -140,6 +105,7 @@ export const ResidentCard: React.FC = () => {
     };
 
     const issueResidentCard = async () => {
+        if (!account) return toast.error("ウォレットを接続してください");
         if (!name || !userAddress || !file) {
             toast.error("未入力の項目があります（写真、名前、住所）");
             return;
@@ -149,12 +115,7 @@ export const ResidentCard: React.FC = () => {
         const loadingToast = toast.loading("発行処理中...");
 
         try {
-            const web3 = window.web3;
-            const accounts = await web3.eth.getAccounts();
-            const currentAccount = accounts[0];
-
-            const contractAddress = "0x522307093BA5A31c5EBfeE26Fa4d6fA52546Ccdb";
-            const nftContract = new web3.eth.Contract(CountryNFT.abi, contractAddress);
+            console.log("Starting issuance process using updated JWT...");
 
             // 1. Upload Image to Pinata
             const imageData = new FormData();
@@ -169,56 +130,63 @@ export const ResidentCard: React.FC = () => {
                 }
             );
 
+            if (!imageUpload.ok) {
+                const errorText = await imageUpload.text();
+                // If 401 again, it means even this JWT is invalid, but it's the best guess we have from the codebase
+                console.error("Pinata Upload Error Response:", imageUpload.status, errorText);
+                throw new Error(`画像アップロード失敗 (Status: ${imageUpload.status})`);
+            }
+
             const imageJson = await imageUpload.json();
-            if (!imageJson.IpfsHash) throw new Error("画像アップロード失敗");
+            if (!imageJson.IpfsHash) throw new Error("画像アップロード失敗: Hashが返されませんでした");
             const imageUrl = `https://gateway.pinata.cloud/ipfs/${imageJson.IpfsHash}`;
+            console.log("Image uploaded to IPFS:", imageUrl);
 
-            // 2. Upload Metadata
-            const metadata = {
-                name,
-                description: "デジタル住民票NFT",
-                attributes: [{ trait_type: "address", value: userAddress }],
-                image: imageUrl,
-            };
+            // 2. Mint NFT (Sui Transaction)
+            const tx = new Transaction();
+            console.log("Building Transaction...");
+            tx.moveCall({
+                target: `${RESIDENT_CARD_PACKAGE_ID}::${RESIDENT_CARD_MODULE_NAME}::mint`,
+                arguments: [
+                    tx.pure.string(name),
+                    tx.pure.string("デジタル住民票NFT"),
+                    tx.pure.string(imageUrl),
+                    tx.pure.string(userAddress),
+                ],
+            });
 
-            const metadataUpload = await fetch(
-                "https://api.pinata.cloud/pinning/pinJSONToIPFS",
+            console.log("Executing Transaction...");
+            await signAndExecuteTransaction(
+                { transaction: tx },
                 {
-                    method: "POST",
-                    headers: {
-                        Authorization: `Bearer ${PINATA_JWT}`,
-                        "Content-Type": "application/json",
+                    onSuccess: (result) => {
+                        console.log("Mint result:", result);
+                        toast.dismiss(loadingToast);
+                        toast.success("住民票の発行が完了しました！");
+
+                        setTimeout(() => {
+                            loadBlockchainData();
+                            setViewMode('list');
+                            // clear form
+                            setName("");
+                            setUserAddress(""); // Manually clear
+                            setFile(null);
+                            setPreviewImage(null);
+                        }, 2000);
                     },
-                    body: JSON.stringify(metadata),
+                    onError: (err) => {
+                        console.error("Mint failed (callback):", err);
+                        toast.dismiss(loadingToast);
+                        // Make error more copyable/readable
+                        toast.error(`発行失敗: ${err.message || "Unknown error"}`);
+                    }
                 }
             );
 
-            const metadataJson = await metadataUpload.json();
-            if (!metadataJson.IpfsHash) throw new Error("メタデータアップロード失敗");
-            const tokenURI = `https://gateway.pinata.cloud/ipfs/${metadataJson.IpfsHash}`;
-
-            // 3. Mint NFT
-            const result = await nftContract.methods
-                .mintNFT(currentAccount, tokenURI)
-                .send({ from: currentAccount });
-
+        } catch (err: any) {
+            console.error("Issuance Error:", err);
             toast.dismiss(loadingToast);
-            toast.success("住民票の発行が完了しました！");
-
-            setTimeout(() => {
-                loadBlockchainData();
-                setViewMode('list');
-                // clear form
-                setName("");
-                setUserAddress("");
-                setFile(null);
-                setPreviewImage(null);
-            }, 2000);
-
-        } catch (err) {
-            console.error(err);
-            toast.dismiss(loadingToast);
-            toast.error("発行中にエラーが発生しました");
+            toast.error("エラーが発生しました: " + (err.message || err));
         } finally {
             setIsIssuing(false);
         }
@@ -237,7 +205,7 @@ export const ResidentCard: React.FC = () => {
                     >
                         &larr; 一覧に戻る
                     </button>
-                    <h2 className="text-xl font-bold text-slate-800">住民票 新規発行</h2>
+                    <h2 className="text-xl font-bold text-slate-800">住民票 新規発行 (Sui)</h2>
                     <p className="text-xs text-slate-500">必要な情報を入力して発行してください。</p>
                 </div>
 
@@ -317,7 +285,7 @@ export const ResidentCard: React.FC = () => {
             <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                     <User className="w-5 h-5 text-purple-600" />
-                    マイページ
+                    マイページ (Sui)
                 </h2>
                 <button
                     onClick={loadBlockchainData}
@@ -334,10 +302,7 @@ export const ResidentCard: React.FC = () => {
                         <ShieldCheck className="w-8 h-8 text-purple-600" />
                     </div>
                     <p className="text-sm text-slate-600">
-                        デジタル住民票を表示するには<br />MetaMask等のウォレット接続が必要です。
-                    </p>
-                    <p className="text-xs text-red-500 bg-red-50 p-2 rounded">
-                        ※Ethereum Sepolia等のネットワークを確認してください
+                        デジタル住民票を表示するには<br />ウォレット接続が必要です。
                     </p>
                 </div>
             ) : (
@@ -358,10 +323,7 @@ export const ResidentCard: React.FC = () => {
                     {/* NFT List */}
                     {myNFTs.map((nft) => {
                         // Extract address safely
-                        const addressAttr = nft.attributes?.find((attr: any) =>
-                            attr.trait_type === "address" || attr.trait_type === "Address"
-                        );
-                        const displayAddress = addressAttr?.value || nft.address || "";
+                        const displayAddress = nft.address || "Unknown";
 
                         // Extract Image Hash (IPFS CID)
                         let imageHash = "";
@@ -372,7 +334,7 @@ export const ResidentCard: React.FC = () => {
                             } else if (nft.image.startsWith("ipfs://")) {
                                 imageHash = nft.image.replace("ipfs://", "");
                             } else {
-                                imageHash = "Not IPFS or unknown format";
+                                imageHash = "External URL";
                             }
                         }
 
@@ -411,14 +373,14 @@ export const ResidentCard: React.FC = () => {
                                         {/* Technical Details */}
                                         <div className="grid grid-cols-1 gap-2 pt-3 border-t border-slate-100 text-left bg-slate-50 p-3 rounded-lg">
                                             <div className="flex flex-col">
-                                                <span className="text-[9px] uppercase text-slate-400 font-bold tracking-wider">住民票ID (Token ID)</span>
+                                                <span className="text-[9px] uppercase text-slate-400 font-bold tracking-wider">住民票ID (Object ID)</span>
                                                 <p className="font-mono text-xs text-slate-600 break-all">
-                                                    {nft.tokenId}
+                                                    {nft.tokenId.slice(0, 10)}...{nft.tokenId.slice(-10)}
                                                 </p>
                                             </div>
 
                                             <div className="flex flex-col">
-                                                <span className="text-[9px] uppercase text-slate-400 font-bold tracking-wider">Transaction ID</span>
+                                                <span className="text-[9px] uppercase text-slate-400 font-bold tracking-wider">Digest</span>
                                                 <p className="font-mono text-[10px] text-slate-500 break-all leading-tight">
                                                     {nft.transactionHash}
                                                 </p>
@@ -447,8 +409,6 @@ export const ResidentCard: React.FC = () => {
                     })}
                 </div>
             )}
-
-
         </div>
     );
 };
