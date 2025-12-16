@@ -225,7 +225,7 @@ export const StayFeature: React.FC<StayFeatureProps> = ({
       navigator.geolocation.getCurrentPosition(
         (pos) => resolve(pos),
         (err) => reject(new Error(`GPS Error: ${err.message}`)),
-        { enableHighAccuracy: true, timeout: GPS_TIMEOUT_MS, maximumAge: 0 },
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 3000 }, // 3秒以内のキャッシュを許容
       );
     });
   }, []);

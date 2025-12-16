@@ -71,7 +71,7 @@ export function useDistanceTimer(start: boolean, initialPos: { lat: number, lng:
           }
         },
         (err) => console.error("GPS Watch Error:", err),
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 3000 } // キャッシュ許容
       );
 
     } else {
