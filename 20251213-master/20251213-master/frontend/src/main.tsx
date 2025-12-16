@@ -32,7 +32,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         networks={networkConfig}
         defaultNetwork="devnet"   // ← ここ重要
       >
-        <WalletProvider autoConnect>
+        <WalletProvider autoConnect enableUnsafeBurner>
           <App />
         </WalletProvider>
       </SuiClientProvider>
