@@ -20,6 +20,7 @@ export function useDistanceTimer(start: boolean, initialPos: { lat: number, lng:
   const [distanceFromStart, setDistanceFromStart] = useState(0); // 開始地点からの距離
   const [elapsed, setElapsed] = useState(0);
   const [isWithinRange, setIsWithinRange] = useState(true); // 範囲内かどうか
+  const [currentLocation, setCurrentLocation] = useState<{ lat: number, lng: number } | null>(null); // 現在地を追加
 
   const watchId = useRef<number | null>(null);
 
@@ -44,11 +45,13 @@ export function useDistanceTimer(start: boolean, initialPos: { lat: number, lng:
       // 初期化
       setDistanceFromStart(0);
       setIsWithinRange(true);
+      setCurrentLocation(initialPos); // 初期位置を入れる
 
       watchId.current = navigator.geolocation.watchPosition(
         (pos) => {
           const currentLat = pos.coords.latitude;
           const currentLng = pos.coords.longitude;
+          setCurrentLocation({ lat: currentLat, lng: currentLng }); // 現在地更新
 
           // 開始地点からの距離を計算
           const dist = getDistance(
@@ -81,6 +84,7 @@ export function useDistanceTimer(start: boolean, initialPos: { lat: number, lng:
         setElapsed(0);
         setDistanceFromStart(0);
         setIsWithinRange(true);
+        setCurrentLocation(null);
       }
     }
 
@@ -89,5 +93,5 @@ export function useDistanceTimer(start: boolean, initialPos: { lat: number, lng:
     };
   }, [start, initialPos]); // initialPos が変わったら再監視
 
-  return { distance: distanceFromStart, elapsed, isWithinRange };
+  return { distance: distanceFromStart, elapsed, isWithinRange, currentLocation };
 }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from '@mysten/dapp-kit';
 import { Transaction } from '@mysten/sui/transactions';
-import { MapContainer, TileLayer, Marker, Circle, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Circle, useMap, CircleMarker } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { MapPin, CheckCircle, Loader2, Wallet } from 'lucide-react';
@@ -146,7 +146,7 @@ export const StayFeature: React.FC<StayFeatureProps> = ({
 
   // === タイマーと距離判定ロジック ===
   // checkedInがtrueになった時点のlocationを基準に、50m範囲内かを判定
-  const { distance, elapsed, isWithinRange } = useDistanceTimer(checkedIn, location);
+  const { distance, elapsed, isWithinRange, currentLocation } = useDistanceTimer(checkedIn, location);
 
   // 範囲外に出た時の警告
   useEffect(() => {
@@ -495,6 +495,19 @@ export const StayFeature: React.FC<StayFeatureProps> = ({
                   fillOpacity: 0.2
                 }}
               />
+              {/* === 新機能: 自分のリアルタイム現在地を青い点で表示 === */}
+              {currentLocation && (
+                <CircleMarker
+                  center={[currentLocation.lat, currentLocation.lng]}
+                  radius={6}
+                  pathOptions={{
+                    color: '#ffffff',
+                    fillColor: '#3b82f6', // Bright Blue
+                    fillOpacity: 1,
+                    weight: 2
+                  }}
+                />
+              )}
             </>
           )}
         </MapContainer>
