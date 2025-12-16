@@ -290,8 +290,9 @@ export const StayFeature: React.FC<StayFeatureProps> = ({
       setStatus('signing');
       const tx = new Transaction();
       // 緯度経度を整数化 (例: 35.1234 -> 35123400)
-      const latInt = Math.floor(checkinLocation.lat * 1000000);
-      const lngInt = Math.floor(checkinLocation.lng * 1000000);
+      // Note: u64エラー回避のため、万が一マイナス値(南緯・西経)が来ても絶対値にして送る
+      const latInt = Math.abs(Math.floor(checkinLocation.lat * 1000000));
+      const lngInt = Math.abs(Math.floor(checkinLocation.lng * 1000000));
 
       // オンチェーンの stay 関数を呼び出し
       // Note: PACKAGE_ID は定数定義されているものを使用
