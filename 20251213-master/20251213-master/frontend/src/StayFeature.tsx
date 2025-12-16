@@ -488,11 +488,11 @@ export const StayFeature: React.FC<StayFeatureProps> = ({
               <Marker position={[location.lat, location.lng]} />
               <Circle
                 center={[location.lat, location.lng]}
-                radius={50} // 30m -> 50m に変更
+                radius={10000} // 10km
                 pathOptions={{
                   color: isWithinRange ? '#2563eb' : '#ef4444',
                   fillColor: isWithinRange ? '#60a5fa' : '#f87171',
-                  fillOpacity: 0.2
+                  fillOpacity: 0.1 // 大きくなるので薄くする
                 }}
               />
               {/* === 新機能: 自分のリアルタイム現在地を青い点で表示 === */}

@@ -63,8 +63,8 @@ export function useDistanceTimer(start: boolean, initialPos: { lat: number, lng:
 
           setDistanceFromStart(dist);
 
-          // 50m制限判定
-          if (dist <= 50) {
+          // 10km制限判定 (テスト用)
+          if (dist <= 10000) {
             setIsWithinRange(true);
           } else {
             setIsWithinRange(false);
