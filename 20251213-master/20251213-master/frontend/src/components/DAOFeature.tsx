@@ -8,7 +8,7 @@ import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from '@
 
 import { daoConfig } from '../dao/daoConfig';
 
-type Proposal = { id: bigint; title: string; yes: bigint };
+type Proposal = { id: bigint; title: string; description: string; yes: bigint };
 
 const chain = 'sui:devnet' as const;
 
@@ -110,7 +110,8 @@ export const DAOFeature: React.FC<DAOFeatureProps> = ({ residentPassId, setResid
 
         items.push({
           id: BigInt(fields.id ?? i),
-          title: fields.title ?? fields.description ?? `Proposal ${i}`,
+          title: fields.title ?? `Proposal ${i}`,
+          description: fields.description ?? '',
           yes: BigInt(fields.yes_votes ?? 0),
         });
       } catch (e) {
@@ -629,17 +630,21 @@ export const DAOFeature: React.FC<DAOFeatureProps> = ({ residentPassId, setResid
       limit: 50,
     });
 
+    const ignoredIds = (localStorage.getItem('demo_ignored_resident_pass_ids') ?? '').split(',');
+
     // ResidentPassを優先的に検出
     let hit = (res.data ?? []).find((o) => {
       const t = (o.data as any)?.type as string | undefined;
-      return t?.endsWith('::ResidentPass');
+      const oid = (o.data as any)?.objectId;
+      return t?.endsWith('::ResidentPass') && !ignoredIds.includes(oid);
     });
 
     // ResidentPassが見つからない場合、ResidentCardを検出
     if (!hit) {
       hit = (res.data ?? []).find((o) => {
         const t = (o.data as any)?.type as string | undefined;
-        return t?.endsWith('::ResidentCard');
+        const oid = (o.data as any)?.objectId;
+        return t?.endsWith('::ResidentCard') && !ignoredIds.includes(oid);
       });
     }
 
@@ -726,6 +731,27 @@ export const DAOFeature: React.FC<DAOFeatureProps> = ({ residentPassId, setResid
       localStorage.setItem('demo_region_offset', rBal.toString());
       localStorage.setItem('demo_global_pid_threshold', gNextId.toString());
       localStorage.setItem('demo_region_pid_threshold', rNextId.toString());
+
+      // 4. Capture Resident Cards to Ignore (Simulate Burn/Reset)
+      try {
+        const res = await client.getOwnedObjects({
+          owner: account!.address,
+          options: { showType: true },
+          limit: 50,
+        });
+        const cards = (res.data ?? []).filter((o) => {
+          const t = (o.data as any)?.type as string | undefined;
+          return t?.endsWith('::ResidentPass') || t?.endsWith('::ResidentCard');
+        });
+        const cardIds = cards.map(c => (c.data as any)?.objectId).filter(Boolean);
+
+        const existingIgnored = (localStorage.getItem('demo_ignored_resident_pass_ids') ?? '').split(',');
+        const newIgnored = Array.from(new Set([...existingIgnored, ...cardIds])).filter(Boolean).join(',');
+        localStorage.setItem('demo_ignored_resident_pass_ids', newIgnored);
+        console.log('Added to ignore list:', cardIds);
+      } catch (e) {
+        console.error('Failed to blacklist resident cards', e);
+      }
 
       toast.success('リセット完了', { id: toastId });
       setTimeout(() => window.location.reload(), 500);
@@ -842,6 +868,7 @@ export const DAOFeature: React.FC<DAOFeatureProps> = ({ residentPassId, setResid
                     return (
                       <div key={p.id.toString()} className="rounded-xl bg-white/70 border border-white/50 p-3">
                         <div className="font-bold">#{p.id.toString()} {p.title}</div>
+                        <div className="text-sm text-slate-600 mb-2">{p.description}</div>
                         <div className="text-sm text-slate-600">YES: {p.yes.toString()}</div>
                         <button
                           className="mt-2 w-full py-2 rounded-xl bg-slate-900 text-white font-bold"
@@ -921,6 +948,7 @@ export const DAOFeature: React.FC<DAOFeatureProps> = ({ residentPassId, setResid
                 {rProposals.map((p) => (
                   <div key={p.id.toString()} className="rounded-xl bg-white/70 border border-white/50 p-3">
                     <div className="font-bold">#{p.id.toString()} {p.title}</div>
+                    <div className="text-sm text-slate-600 mb-2">{p.description}</div>
                     <div className="text-sm text-slate-600">YES: {p.yes.toString()}</div>
                     <button
                       className="mt-2 w-full py-2 rounded-xl bg-slate-900 text-white font-bold"
