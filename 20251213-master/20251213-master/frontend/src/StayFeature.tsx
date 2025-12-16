@@ -415,6 +415,12 @@ export const StayFeature: React.FC<StayFeatureProps> = ({
             setStatus('idle');
             setShowConfetti(false);
             setStayId(null);
+
+            // 重要: トークンオブジェクトの情報(バージョン等)が変わったので、再取得して更新する
+            // 直後だとインデクサが古いままの可能性があるので、何度かリトライする
+            setRefreshTrigger(prev => prev + 1);
+            setTimeout(() => setRefreshTrigger(prev => prev + 1), 1000);
+            setTimeout(() => setRefreshTrigger(prev => prev + 1), 3000);
           },
           onError: (err) => {
             console.error('Stop Measurement failed:', err);
