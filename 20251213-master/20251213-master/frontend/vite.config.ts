@@ -6,6 +6,14 @@ export default defineConfig({
   server: {
     port: 5174,
     strictPort: true,
+    proxy: {
+      '/sui-rpc': {
+        target: 'https://fullnode.devnet.sui.io',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/sui-rpc/, ''),
+      },
+    },
   },
 });
 

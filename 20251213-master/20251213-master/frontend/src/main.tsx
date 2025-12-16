@@ -7,7 +7,7 @@ import { getFullnodeUrl } from '@mysten/sui/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
 
-// ✅ devnet を使う
+// ✅ devnet を使う (CORS回避のためプロキシ経由)
 const { networkConfig } = createNetworkConfig({
   devnet: { url: getFullnodeUrl('devnet') },
 });

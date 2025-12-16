@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { ConnectButton, useDisconnectWallet } from '@mysten/dapp-kit';
 import { StayFeature } from './StayFeature';
 import { ResidentCard } from './components/ResidentCard';
+import { DAOFeature } from './components/DAOFeature'; // Restored Import
 import { LoginScreen } from './components/LoginScreen'; // New Import
 import { Toaster } from 'react-hot-toast';
-import { MapPin, UserSquare2, LogOut } from 'lucide-react';
+import { MapPin, UserSquare2, LogOut, Users } from 'lucide-react'; // Add Users icon
 import { useDistanceTimer } from './useDistanceTimer';
 
 // import { DistanceTimerDisplay } from './DistanceTimerDisplay'; // ← 削除
@@ -15,21 +16,19 @@ import clsx from 'clsx';
 //    -> このコンポーネントは未使用のため、定義を削除します。
 // =========================================================
 
-
 const App: React.FC = () => {
-  // Auth State
+  // ... (Auth State)
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userAddress, setUserAddress] = useState<string | null>(null);
 
   const { mutate: disconnect } = useDisconnectWallet();
 
-  // Login Success Handler
+  // ... (Login/Logout Handlers)
   const handleLoginSuccess = (address: string) => {
     setUserAddress(address);
     setIsAuthenticated(true);
   };
 
-  // Logout Handler
   const handleLogout = () => {
     disconnect();
     setIsAuthenticated(false);
@@ -38,13 +37,19 @@ const App: React.FC = () => {
   };
 
   // --- Original App State ---
-  const [activeTab, setActiveTab] = useState<'checkin' | 'card'>('checkin');
+  // Add 'dao' to the type
+  const [activeTab, setActiveTab] = useState<'checkin' | 'card' | 'dao'>('checkin');
   const [checkedIn, setCheckedIn] = useState(false);
   const [tokenCount, setTokenCount] = useState<number>(0);
+  const [tokenObjectId, setTokenObjectId] = useState<string | 'MINT_REQUIRED' | null>(null); // Added State
 
   const { distance, elapsed } = useDistanceTimer(checkedIn);
 
-  // StayFeatureに渡す計測終了ハンドラ
+  // ... (handleStopMeasurement)
+  // DAO State (Lifted up for persistence)
+  const [residentPassId, setResidentPassId] = useState('');
+
+  // ... (handleStopMeasurement)
   const handleStopMeasurement = () => {
     setCheckedIn(false);
   };
@@ -54,18 +59,15 @@ const App: React.FC = () => {
   }
 
   return (
-
     <div className="min-h-screen w-full bg-mesh flex items-center justify-center font-sans text-slate-800">
       <div className="w-full max-w-[390px] h-[85vh] max-h-[850px] glass-panel rounded-[40px] shadow-2xl overflow-hidden flex flex-col relative border border-white/50">
 
-        {/* 1. ヘッダー (最上部) */}
+        {/* 1. Header */}
         <header className="bg-white/40 backdrop-blur-md p-4 flex justify-between items-center border-b border-white/50 z-30">
-          {/* h2 を h1 に変更し、アプリ名を目立たせる */}
           <h2 className="text-slate-800 font-bold text-lg tracking-wide flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]"></span>
             Meow-Dapps
           </h2>
-          {/* コネクトボタンとログアウトボタン */}
           <div className="flex items-center gap-2">
             <div className="scale-90 origin-right">
               <ConnectButton />
@@ -80,7 +82,7 @@ const App: React.FC = () => {
           </div>
         </header>
 
-        {/* 2. ナビゲーションタブ (ヘッダー直下) */}
+        {/* 2. Navigation Tabs */}
         <div className="w-full glass-tab flex justify-around items-center h-16 z-20 border-b border-white/50">
           <button
             onClick={() => setActiveTab('checkin')}
@@ -90,8 +92,18 @@ const App: React.FC = () => {
             )}
           >
             <MapPin className={clsx("w-6 h-6", activeTab === 'checkin' && "fill-current drop-shadow-sm")} />
-            {/* === 修正点: 日本語クラス名を削除し、適切なスタイルクラスを適用 === */}
             <span className="text-[10px] font-bold tracking-wider mt-1">チェックイン</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('dao')}
+            className={clsx(
+              "flex flex-col items-center justify-center w-full h-full transition-all duration-300",
+              activeTab === 'dao' ? "text-emerald-600 scale-105" : "text-slate-500 hover:text-emerald-600"
+            )}
+          >
+            <Users className={clsx("w-6 h-6", activeTab === 'dao' && "fill-current drop-shadow-sm")} />
+            <span className="text-[10px] font-bold tracking-wider mt-1">DAO</span>
           </button>
 
           <button
@@ -102,28 +114,31 @@ const App: React.FC = () => {
             )}
           >
             <UserSquare2 className={clsx("w-6 h-6", activeTab === 'card' && "fill-current drop-shadow-sm")} />
-            {/* === 修正点: 日本語クラス名を削除し、適切なスタイルクラスを適用 === */}
-            <span className="text-[10px] font-bold tracking-wider mt-1">デジタル住民票</span>
+            <span className="text-[10px] font-bold tracking-wider mt-1">住民票</span>
           </button>
         </div>
 
-        {/* 3. メインコンテンツ (スクロール可能エリア) */}
+        {/* 3. Main Content */}
         <main className="flex-1 overflow-y-auto relative">
-          {activeTab === 'checkin' ? (
-            <>
-              <StayFeature
-                onCheckinSuccess={() => setCheckedIn(true)}
-                tokenCount={tokenCount} // 👈 修正: Props名を 'tokenCount' に変更
-                setTokenCount={setTokenCount}
-                distance={distance}
-                elapsed={elapsed}
-                checkedIn={checkedIn}
-                onStopMeasurement={handleStopMeasurement}
-              />
-            </>
-          ) : (
-            <ResidentCard />
+          {activeTab === 'checkin' && (
+            <StayFeature
+              onCheckinSuccess={() => setCheckedIn(true)}
+              tokenCount={tokenCount}
+              setTokenCount={setTokenCount}
+              distance={distance}
+              elapsed={elapsed}
+              checkedIn={checkedIn}
+              onStopMeasurement={handleStopMeasurement}
+              tokenObjectId={tokenObjectId} // Added prop
+            />
           )}
+          {activeTab === 'dao' && (
+            <DAOFeature
+              residentPassId={residentPassId}
+              setResidentPassId={setResidentPassId}
+            />
+          )}
+          {activeTab === 'card' && <ResidentCard />}
         </main>
 
 

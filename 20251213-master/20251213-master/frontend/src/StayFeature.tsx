@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useCurrentAccount, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
+import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from '@mysten/dapp-kit';
 import { Transaction } from '@mysten/sui/transactions';
 import { MapContainer, TileLayer, Marker, Circle, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { MapPin, CheckCircle, Loader2 } from 'lucide-react';
+import { MapPin, CheckCircle, Loader2, Wallet } from 'lucide-react';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import Confetti from 'react-confetti';
@@ -21,22 +21,22 @@ L.Icon.Default.mergeOptions({
 });
 
 const PACKAGE_ID =
-  '0x3e386c67c06c550c65775485cec6a38e031aad2ce8b2d8c2f1f3a1936938ce21';
+  '0x4ca93f862d7429b6bd8447882e08afd703dbbbe94480e839ebc31f8aa37dfc26';
 
 const MODULE_NAME = 'stay_feature';
 const FUNCTION_NAME = 'stay';
 const GPS_TIMEOUT_MS = 10000;
 const defaultLocation = { lat: 35.6812, lng: 139.7671 };
 
+const calculateBonusReward = (elapsed: number): number => {
+  // 1 second = 1 Raw Unit (Display as 0.1)
+  return Math.floor(elapsed * 1);
+};
+
 const playSuccessSound = () => {
   const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3');
   audio.volume = 0.5;
   audio.play().catch(e => console.log('Audio play failed', e));
-};
-
-const calculateBonusReward = (elapsed: number): number => {
-  // 1 second = 0.1 Token
-  return Math.floor(elapsed * 0.1 * 10) / 10;
 };
 
 // 型定義
@@ -48,6 +48,7 @@ type StayFeatureProps = {
   distance: number;
   elapsed: number;
   checkedIn: boolean;
+  tokenObjectId?: string | 'MINT_REQUIRED' | null; // Optional now, we handle it internally
 };
 
 // =========================================================
@@ -58,7 +59,7 @@ const TokenDisplay: React.FC<{ tokenCount: number, status: string }> = ({ tokenC
   <div className="token-box flex-1 min-w-0 !p-3">
     <div className="flex items-center gap-2">
       <div className="flex items-baseline">
-        <span className="token-count">{tokenCount}</span>
+        <span className="token-count">{(tokenCount / 10).toFixed(1)}</span>
         <span className="token-label">トークン</span>
       </div>
     </div>
@@ -112,9 +113,11 @@ export const StayFeature: React.FC<StayFeatureProps> = ({
   distance,
   elapsed,
   checkedIn,
+  // tokenObjectId prop is ignored/shadowed by internal state logic
 }) => {
   const account = useCurrentAccount();
   const { mutateAsync: signAndExecuteTransaction } = useSignAndExecuteTransaction();
+  const client = useSuiClient();
 
   // status を 'locating' から 'idle' に変更し、初回マウント時に位置情報取得を試みる
   const [status, setStatus] = useState<'idle' | 'locating' | 'signing' | 'submitting' | 'success'>('idle');
@@ -122,11 +125,59 @@ export const StayFeature: React.FC<StayFeatureProps> = ({
   const [showConfetti, setShowConfetti] = useState(false);
   const [stayId, setStayId] = useState<number | null>(null);
 
+  // Internal management of tokenObjectId
+  const [internalTokenObjectId, setInternalTokenObjectId] = useState<string | 'MINT_REQUIRED' | null>(null);
+  const [isFetchingToken, setIsFetchingToken] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  useEffect(() => {
+    const fetchTokenObject = async () => {
+      if (!account?.address) return;
+      setIsFetchingToken(true);
+      try {
+        const { data } = await client.getOwnedObjects({
+          owner: account.address,
+          filter: {
+            StructType: `${PACKAGE_ID}::token_management::TokenBalance`,
+          },
+          options: {
+            showContent: true,
+          }
+        });
+
+        if (data && data.length > 0) {
+          const obj = data[0];
+          const content = obj.data?.content;
+          setInternalTokenObjectId(obj.data?.objectId ?? null);
+
+          // If we can read the balance, let's update strict tokenCount too
+          if (content && content.dataType === 'moveObject') {
+            // @ts-ignore
+            const balance = content.fields.balance;
+            if (typeof balance !== 'undefined') {
+              setTokenCount(Number(balance));
+            }
+          }
+
+        } else {
+          setInternalTokenObjectId('MINT_REQUIRED');
+        }
+      } catch (e) {
+        console.error('Failed to fetch token object:', e);
+        toast.error('ウォレット情報の取得に失敗しました');
+      } finally {
+        setIsFetchingToken(false);
+      }
+    };
+
+    fetchTokenObject();
+  }, [account, client, setTokenCount, refreshTrigger]);
+
   useEffect(() => {
     if (account && tokenCount === 0) {
-      setTokenCount(0);
+      // Keep existing logic if needed, but fetchTokenObject above overrides it correctly
     }
-  }, [account, tokenCount, setTokenCount]);
+  }, [account, tokenCount]);
 
   // GPS位置情報取得ロジック (useCallback でラップ)
   const getPosition = useCallback((): Promise<GeolocationPosition> => {
@@ -168,16 +219,15 @@ export const StayFeature: React.FC<StayFeatureProps> = ({
   }, [getPosition, location, checkedIn]);
 
 
-  // チェックイン処理の修正
+  // 以前のオンチェーンチェックインロジックを復元
   const handleCheckIn = async () => {
     if (!account) {
-      toast.error('Please connect your wallet first!');
+      toast.error('Walletを接続してください');
       return;
     }
 
     let checkinLocation = location;
-
-    // location がまだ取得できていない場合、または計測中でない場合は再度取得を試みる
+    // 位置情報未取得なら取得トライ
     if (!checkinLocation || status !== 'success') {
       try {
         setStatus('locating');
@@ -186,19 +236,17 @@ export const StayFeature: React.FC<StayFeatureProps> = ({
           lat: position.coords.latitude,
           lng: position.coords.longitude
         };
-        setLocation(checkinLocation); // 再取得した位置情報を更新
+        setLocation(checkinLocation);
         await new Promise(resolve => setTimeout(resolve, 800));
       } catch (e: any) {
-        console.error(e);
         setStatus('idle');
         toast.error(e.message || '位置情報の取得に失敗しました');
         return;
       }
     }
 
-    // ここで status は 'locating' (成功) または 'idle' (初期状態)
     if (!checkinLocation) {
-      toast.error('位置情報が取得できませんでした。');
+      toast.error('位置情報が取得できませんでした');
       setStatus('idle');
       return;
     }
@@ -206,126 +254,142 @@ export const StayFeature: React.FC<StayFeatureProps> = ({
     try {
       setStatus('signing');
       const tx = new Transaction();
+      // 緯度経度を整数化 (例: 35.1234 -> 35123400)
       const latInt = Math.floor(checkinLocation.lat * 1000000);
       const lngInt = Math.floor(checkinLocation.lng * 1000000);
-      tx.moveCall({ target: `${PACKAGE_ID}::${MODULE_NAME}::${FUNCTION_NAME}`, arguments: [tx.pure.u64(latInt), tx.pure.u64(lngInt)] });
-      setStatus('submitting');
 
+      // オンチェーンの stay 関数を呼び出し
+      // Note: PACKAGE_ID は定数定義されているものを使用
+      tx.moveCall({
+        target: `${PACKAGE_ID}::${MODULE_NAME}::${FUNCTION_NAME}`,
+        arguments: [tx.pure.u64(latInt), tx.pure.u64(lngInt)]
+      });
+
+      setStatus('submitting');
       await signAndExecuteTransaction(
         { transaction: tx },
         {
-          onSuccess: async () => {
-            // Backend API Checkin
-            if (account) {
-              try {
-                const res = await fetch('http://localhost:3001/api/checkin', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    userAddress: account.address,
-                    lat: checkinLocation.lat,
-                    lng: checkinLocation.lng
-                  })
-                });
-                const data = await res.json();
-                if (data.success && data.stayId) {
-                  setStayId(data.stayId);
-                }
-              } catch (e) {
-                console.error('API Checkin failed', e);
-              }
-            }
-
+          onSuccess: (result) => {
+            console.log('Checkin TX:', result);
             setStatus('success');
-
-            // チェックイン成功報酬 (1トークン) の加算
             setTokenCount((prev) => prev + 1);
-
             setShowConfetti(true);
             playSuccessSound();
-            toast.success('チェックインに成功しました！計測を開始します。（+1 トークン）');
+            toast.success('チェックイン成功！(オンチェーン記録完了)');
             onCheckinSuccess?.();
           },
-          onError: () => {
-            console.error();
+          onError: (err) => {
+            console.error('Checkin TX failed:', err);
             setStatus('idle');
             toast.error('チェックインに失敗しました');
-          },
+          }
         }
       );
     } catch (e: any) {
       console.error(e);
       setStatus('idle');
-      toast.error('トランザクションの送信に失敗しました');
+      toast.error('トランザクション作成に失敗');
     }
   };
 
-  // 計測終了ハンドラ
+  const handleMintTokenObject = async () => {
+    if (!account) return;
+    try {
+      const tx = new Transaction();
+      tx.moveCall({
+        target: `${PACKAGE_ID}::token_management::mint_initial_balance`,
+        arguments: []
+      });
+
+      await signAndExecuteTransaction(
+        { transaction: tx },
+        {
+          onSuccess: (result) => {
+            console.log('Mint Initial Balance TX:', result);
+            toast.success('利用登録が完了しました！');
+            // Trigger refetch
+            setRefreshTrigger(prev => prev + 1);
+          },
+          onError: (err) => {
+            console.error('Mint Initial Balance failed:', err);
+            toast.error('ウォレット作成に失敗しました');
+          }
+        }
+      );
+    } catch (e: any) {
+      console.error(e);
+      toast.error('トランザクション作成に失敗');
+    }
+  };
+
+  // 計測終了ハンドラ (オンチェーン版)
   const handleStopMeasurement = async () => {
-    // 1. Get current position for Checkout
-    let checkoutLat = location?.lat;
-    let checkoutLng = location?.lng;
+    console.log("handleStopMeasurement called. Elapsed:", elapsed);
+
+    if (!account) {
+      toast.error('ウォレットが未接続です。');
+      return;
+    }
+
+    if (!internalTokenObjectId || internalTokenObjectId === 'MINT_REQUIRED') {
+      console.error("Token Object Missing:", internalTokenObjectId);
+      toast.error('トークン残高オブジェクトIDが見つかりません。');
+      return;
+    }
+
+    // calculateBonusReward は別途定義されていると仮定
+    const bonusReward = calculateBonusReward(elapsed);
+    console.log("Calculated Reward:", bonusReward);
+
+    if (bonusReward === 0) {
+      toast.error("報酬が0です。もう少し滞在してください。");
+      // Proceeding anyway but user should know
+    }
 
     try {
-      const pos = await getPosition();
-      checkoutLat = pos.coords.latitude;
-      checkoutLng = pos.coords.longitude;
-    } catch (e) {
-      console.warn("Checkout GPS update failed, using last known", e);
-    }
+      setStatus('signing');
 
-    let bonusReward = calculateBonusReward(elapsed); // Client-side fallback default
+      const tx = new Transaction();
 
-    if (stayId && account) {
-      if (checkoutLat === undefined || checkoutLng === undefined) {
-        toast.error("位置情報が取得できないため、正確なチェックアウトができません。");
-        // We continue but might fail on server or just send what we have? 
-        // If we don't return here, we send undefined which fails server check.
-      }
+      // チェックアウト(計測終了) & トークン発行
+      // Note: PACKAGE_ID は共通、モジュールは token_management を想定
+      const TOKEN_MODULE_NAME = 'token_management';
+      const TOKEN_FUNCTION_NAME = 'complete_stay_measurement';
 
-      try {
-        const res = await fetch('http://localhost:3001/api/checkout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            stayId: stayId,
-            userAddress: account.address,
-            lat: checkoutLat,
-            lng: checkoutLng
-          })
-        });
-        const data = await res.json();
+      tx.moveCall({
+        target: `${PACKAGE_ID}::${TOKEN_MODULE_NAME}::${TOKEN_FUNCTION_NAME}`,
+        arguments: [
+          tx.object(internalTokenObjectId),
+          tx.pure.u64(bonusReward),
+        ]
+      });
 
-        if (data.success) {
-          bonusReward = data.tokensEarned;
-          toast.success(`ボーナスとして ${bonusReward} トークンを獲得しました！`);
-        } else {
-          // Failed (e.g. moved too far)
-          bonusReward = 0;
-          toast.error(data.message || "チェックアウトエラー: 条件を満たしていません");
+      setStatus('submitting');
+      await signAndExecuteTransaction(
+        { transaction: tx },
+        {
+          onSuccess: (result) => {
+            console.log('Stop Measurement TX:', result);
+            toast.success(`(オンチェーン) 計測終了！ +${(bonusReward / 10).toFixed(1)} トークン`);
+            setTokenCount((prev) => prev + bonusReward);
+            onStopMeasurement();
+            setStatus('idle');
+            setShowConfetti(false);
+            setStayId(null);
+          },
+          onError: (err) => {
+            console.error('Stop Measurement failed:', err);
+            toast.error('計測終了に失敗しました');
+            setStatus('success'); // Revert to success state so they can try again
+          }
         }
-      } catch (e) {
-        console.error('API Checkout failed', e);
-        toast.error("サーバーとの通信に失敗しました。");
-        // We do NOT want to give free tokens on network error if we are strict.
-        // But for now let's leave bonusReward as calculated by client? 
-        // No, if check-in was server-side, verify should be too.
-        // But original code fell back to client calc. I'll stick to new strict logic:
-        bonusReward = 0;
-      }
-    } else {
-      // Not logged in or no StayId -> Client side simulation
-      toast.success(`(デモ) ボーナスとして ${bonusReward} トークンを獲得しました！`);
+      );
+
+    } catch (e: any) {
+      console.error('トークン記録トランザクション失敗:', e);
+      toast.error('計測終了時のトークン記録に失敗しました。');
+      setStatus('success');
     }
-
-    setTokenCount((prev) => prev + bonusReward);
-
-    // 親コンポーネントで checkedIn=false となり、distance/elapsed がリセットされる
-    onStopMeasurement();
-
-    setStatus('idle'); // status を idle に戻す
-    setShowConfetti(false);
-    setStayId(null);
   };
 
   const shouldDisplayDistance = checkedIn || distance > 0;
@@ -402,28 +466,50 @@ export const StayFeature: React.FC<StayFeatureProps> = ({
             "checkin-btn",
             {
               'bg-blue-600 hover:bg-blue-700': status === 'success',
-              'bg-green-500 hover:bg-green-600': status === 'idle',
-              'opacity-60 cursor-not-allowed': isLoading, // loading中も無効化
+              'bg-green-500 hover:bg-green-600': status === 'idle' && internalTokenObjectId !== 'MINT_REQUIRED',
+              'bg-purple-600 hover:bg-purple-700': internalTokenObjectId === 'MINT_REQUIRED' && !isFetchingToken,
+              'opacity-60 cursor-not-allowed': isLoading || isFetchingToken, // loading中も無効化
             }
           )}
-          onClick={status === 'success' ? handleStopMeasurement : handleCheckIn}
-          disabled={isLoading}
+          onClick={
+            status === 'success'
+              ? handleStopMeasurement
+              : internalTokenObjectId === 'MINT_REQUIRED'
+                ? handleMintTokenObject
+                : handleCheckIn
+          }
+          disabled={isLoading || isFetchingToken}
         >
-          {status === "idle" && "チェックイン"}
-          {status === "locating" && (
+          {isFetchingToken && (
+            <span className="flex items-center justify-center gap-2">
+              <Loader2 className="animate-spin w-5 h-5" />
+              ウォレット確認中...
+            </span>
+          )}
+
+          {!isFetchingToken && internalTokenObjectId === 'MINT_REQUIRED' && (
+            <span className="flex items-center justify-center gap-2">
+              <Wallet className="w-5 h-5" />
+              チェックイン
+            </span>
+          )}
+
+          {!isFetchingToken && internalTokenObjectId !== 'MINT_REQUIRED' && status === "idle" && "チェックイン"}
+
+          {!isFetchingToken && status === "locating" && (
             <span className="flex items-center justify-center gap-2">
               <Loader2 className="animate-spin w-5 h-5" />
               位置情報最終確認中...
             </span>
           )}
-          {(status === "signing" || status === "submitting") && (
+          {!isFetchingToken && (status === "signing" || status === "submitting") && (
             <span className="flex items-center justify-center gap-2">
               <Loader2 className="animate-spin w-5 h-5" />
               {status === "signing" && "署名中..."}
               {status === "submitting" && "送信中..."}
             </span>
           )}
-          {status === "success" && (
+          {!isFetchingToken && status === "success" && (
             <span className="flex items-center justify-center gap-2">
               <MapPin className="w-5 h-5" /> 計測終了
             </span>

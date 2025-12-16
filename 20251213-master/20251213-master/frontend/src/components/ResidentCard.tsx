@@ -5,7 +5,8 @@ import { User, ShieldCheck, Sparkles, Camera, Trash2, RefreshCw } from 'lucide-r
 import { toast } from 'react-hot-toast';
 
 // Deployed Package ID
-const RESIDENT_CARD_PACKAGE_ID = "0x4c94cff97d1494d6d717aaf76bdb67a190791f0926f487f6f69c793db6d05252";
+// Deployed Package ID (Same as stay_feature/token_management)
+const RESIDENT_CARD_PACKAGE_ID = "0x4ca93f862d7429b6bd8447882e08afd703dbbbe94480e839ebc31f8aa37dfc26";
 const RESIDENT_CARD_MODULE_NAME = "card";
 const RESIDENT_CARD_TYPE = `${RESIDENT_CARD_PACKAGE_ID}::${RESIDENT_CARD_MODULE_NAME}::ResidentCard`;
 
