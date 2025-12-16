@@ -12,7 +12,18 @@ const { networkConfig } = createNetworkConfig({
   devnet: { url: getFullnodeUrl('devnet') },
 });
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // 高速化設定: キャッシュ有効期限を60秒にし、頻繁な再取得を防ぐ
+      staleTime: 60 * 1000,
+      // RPC負荷軽減: ウィンドウフォーカス時の自動再取得をオフ
+      refetchOnWindowFocus: false,
+      // エラー時のリトライ回数を制限
+      retry: 1,
+    },
+  },
+});
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
