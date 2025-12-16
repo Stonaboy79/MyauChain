@@ -9,6 +9,7 @@ import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import Confetti from 'react-confetti';
 import { useDistanceTimer } from './useDistanceTimer';
+import { getDebugKeypair } from './utils/debugAuth';
 
 // =========================================================
 // 1. 定数とユーティリティ
@@ -113,8 +114,29 @@ export const StayFeature: React.FC<StayFeatureProps> = ({
   // tokenObjectId prop is ignored/shadowed by internal state logic
 }) => {
   const account = useCurrentAccount();
-  const { mutateAsync: signAndExecuteTransaction } = useSignAndExecuteTransaction();
+  const { mutateAsync: walletSignAndExec } = useSignAndExecuteTransaction();
   const client = useSuiClient();
+
+  // === デバッグ用署名ラッパー ===
+  // デバッグキーがあればそちらを使用、なければWalletアダプタを使用
+  const executeTx = async (tx: Transaction, options: { onSuccess: (res: any) => void; onError: (err: any) => void }) => {
+    const debugKey = getDebugKeypair();
+    if (debugKey) {
+      try {
+        const result = await client.signAndExecuteTransaction({
+          signer: debugKey,
+          transaction: tx,
+        });
+        options.onSuccess(result);
+        return result;
+      } catch (e) {
+        options.onError(e);
+        throw e;
+      }
+    } else {
+      return walletSignAndExec({ transaction: tx }, options);
+    }
+  };
 
   // status を 'locating' から 'idle' に変更し、初回マウント時に位置情報取得を試みる
   const [status, setStatus] = useState<'idle' | 'locating' | 'signing' | 'submitting' | 'success'>('idle');
@@ -279,8 +301,8 @@ export const StayFeature: React.FC<StayFeatureProps> = ({
       });
 
       setStatus('submitting');
-      await signAndExecuteTransaction(
-        { transaction: tx },
+      await executeTx(
+        tx,
         {
           onSuccess: (result) => {
             console.log('Checkin TX:', result);
@@ -314,8 +336,8 @@ export const StayFeature: React.FC<StayFeatureProps> = ({
         arguments: []
       });
 
-      await signAndExecuteTransaction(
-        { transaction: tx },
+      await executeTx(
+        tx,
         {
           onSuccess: (result) => {
             console.log('Mint Initial Balance TX:', result);
@@ -378,8 +400,8 @@ export const StayFeature: React.FC<StayFeatureProps> = ({
       });
 
       setStatus('submitting');
-      await signAndExecuteTransaction(
-        { transaction: tx },
+      await executeTx(
+        tx,
         {
           onSuccess: (result) => {
             console.log('Stop Measurement TX:', result);

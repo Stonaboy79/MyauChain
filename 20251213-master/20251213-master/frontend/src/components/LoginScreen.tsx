@@ -94,6 +94,33 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                         認証中...
                     </div>
                 )}
+
+                {/* --- DEBUG: Secret Key Login --- */}
+                <details className="w-full pt-8 text-left">
+                    <summary className="text-xs text-slate-300 cursor-pointer list-none text-center">
+                        開発者用オプション (秘密鍵ログイン)
+                    </summary>
+                    <div className="mt-4 p-4 bg-slate-100 rounded-xl space-y-2">
+                        <p className="text-xs text-red-500 font-bold">※警告: 秘密鍵を直接扱います。テスト環境のみで使用し、使用後は必ずコードを削除してください。</p>
+                        <input
+                            type="text"
+                            placeholder="suiprivkey..."
+                            className="w-full p-2 text-xs border rounded font-mono"
+                            onChange={(e) => {
+                                try {
+                                    if (e.target.value.length > 10) {
+                                        // Auto login attempt on paste
+                                        import('../utils/debugAuth').then(({ setDebugPrivateKey }) => {
+                                            const address = setDebugPrivateKey(e.target.value);
+                                            onLoginSuccess(address);
+                                        }).catch(() => { });
+                                    }
+                                } catch (e) { }
+                            }}
+                        />
+                    </div>
+                </details>
+
             </main>
         </div>
     );
