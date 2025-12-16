@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from '@mysten/dapp-kit';
 import { Transaction } from '@mysten/sui/transactions';
-import { User, ShieldCheck, Sparkles, Camera, Trash2, RefreshCw } from 'lucide-react';
+import { User, ShieldCheck, Sparkles, Camera, Trash2, RefreshCw, QrCode } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { motion, useMotionValue, useTransform, useSpring } from 'framer-motion';
 
 // Deployed Package ID
 // Deployed Package ID (Same as stay_feature/token_management)
@@ -322,94 +323,129 @@ export const ResidentCard: React.FC = () => {
                     )}
 
                     {/* NFT List */}
-                    {myNFTs.map((nft) => {
-                        // Extract address safely
-                        const displayAddress = nft.address || "Unknown";
-
-                        // Extract Image Hash (IPFS CID)
-                        let imageHash = "";
-                        if (nft.image) {
-                            const match = nft.image.match(/\/ipfs\/([a-zA-Z0-9]+)/);
-                            if (match) {
-                                imageHash = match[1];
-                            } else if (nft.image.startsWith("ipfs://")) {
-                                imageHash = nft.image.replace("ipfs://", "");
-                            } else {
-                                imageHash = "External URL";
-                            }
-                        }
-
-                        return (
-                            <div key={nft.tokenId} className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 relative group">
-                                <div className="flex flex-col items-center gap-4">
-                                    {/* Image - Centered and larger if needed */}
-                                    <div className="w-full aspect-square max-w-[200px] bg-slate-50 rounded-xl overflow-hidden border border-slate-100 flex items-center justify-center">
-                                        {nft.image ? (
-                                            <img
-                                                src={nft.image}
-                                                alt={nft.name}
-                                                className="w-full h-full object-contain"
-                                            />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-slate-300">
-                                                <User className="w-16 h-16" />
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Info */}
-                                    <div className="w-full min-w-0 space-y-3 text-center">
-                                        {/* Name & Address */}
-                                        <div>
-                                            <h3 className="font-bold text-slate-800 text-xl">
-                                                {nft.name}
-                                            </h3>
-                                            {displayAddress && (
-                                                <p className="text-sm text-slate-600 mt-1 break-all">
-                                                    {displayAddress}
-                                                </p>
-                                            )}
-                                        </div>
-
-                                        {/* Technical Details */}
-                                        <div className="grid grid-cols-1 gap-2 pt-3 border-t border-slate-100 text-left bg-slate-50 p-3 rounded-lg">
-                                            <div className="flex flex-col">
-                                                <span className="text-[9px] uppercase text-slate-400 font-bold tracking-wider">住民票ID (Object ID)</span>
-                                                <p className="font-mono text-xs text-slate-600 break-all">
-                                                    {nft.tokenId.slice(0, 10)}...{nft.tokenId.slice(-10)}
-                                                </p>
-                                            </div>
-
-                                            <div className="flex flex-col">
-                                                <span className="text-[9px] uppercase text-slate-400 font-bold tracking-wider">Digest</span>
-                                                <p className="font-mono text-[10px] text-slate-500 break-all leading-tight">
-                                                    {nft.transactionHash}
-                                                </p>
-                                            </div>
-
-                                            <div className="flex flex-col">
-                                                <span className="text-[9px] uppercase text-slate-400 font-bold tracking-wider">Image Hash</span>
-                                                <p className="font-mono text-[10px] text-slate-500 break-all leading-tight">
-                                                    {imageHash}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Delete Button (Absolute) */}
-                                <button
-                                    onClick={() => handleDelete(nft.tokenId)}
-                                    className="absolute top-2 right-2 p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
-                                    title="削除（非表示）"
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                </button>
-                            </div>
-                        );
-                    })}
+                    <div className="flex flex-col items-center gap-8">
+                        {myNFTs.map((nft) => (
+                            <HologramCard key={nft.tokenId} nft={nft} onDelete={handleDelete} />
+                        ))}
+                    </div>
                 </div>
             )}
+        </div>
+    );
+};
+
+// ==========================================
+// 3D Hologram Card Component
+// ==========================================
+interface HologramCardProps {
+    nft: any;
+    onDelete: (id: string) => void;
+}
+
+const HologramCard: React.FC<HologramCardProps> = ({ nft, onDelete }) => {
+    const x = useMotionValue(0);
+    const y = useMotionValue(0);
+
+    const rotateX = useSpring(useTransform(y, [-100, 100], [10, -10]), { stiffness: 150, damping: 20 });
+    const rotateY = useSpring(useTransform(x, [-100, 100], [-10, 10]), { stiffness: 150, damping: 20 });
+
+    const handleMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
+        const rect = event.currentTarget.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        x.set(event.clientX - centerX);
+        y.set(event.clientY - centerY);
+    };
+
+    const handleMouseLeave = () => {
+        x.set(0);
+        y.set(0);
+    };
+
+    return (
+        <div className="flex flex-col items-center justify-center p-4 perspective-1000 w-full">
+            <motion.div
+                style={{ rotateX, rotateY, transformStyle: "preserve-3d" }}
+                onMouseMove={handleMouseMove}
+                onMouseLeave={handleMouseLeave}
+                className="relative w-full max-w-[340px] aspect-[1.58/1] rounded-2xl shadow-2xl cursor-pointer group"
+            >
+                {/* Card Background */}
+                <div className="absolute inset-0 bg-black/80 backdrop-blur-xl rounded-2xl overflow-hidden border border-white/10">
+                    {/* Neon Gradients */}
+                    <div className="absolute top-[-50%] left-[-20%] w-[80%] h-[150%] bg-blue-600/30 rounded-full blur-[80px]" />
+                    <div className="absolute bottom-[-20%] right-[-20%] w-[60%] h-[100%] bg-purple-600/30 rounded-full blur-[80px]" />
+
+                    {/* Holographic Overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none z-20" />
+
+                    {/* Card Content */}
+                    <div className="relative h-full p-6 flex flex-col justify-between text-white z-10">
+                        {/* Header */}
+                        <div className="flex justify-between items-start">
+                            <div className="flex items-center gap-2">
+                                <div className="p-1.5 bg-white/10 backdrop-blur-md rounded-lg border border-white/10">
+                                    <Sparkles className="w-4 h-4 text-blue-300" />
+                                </div>
+                                <span className="font-bold tracking-[0.2em] text-[10px] text-blue-200">SUI PASSPORT</span>
+                            </div>
+                            <div className="px-2 py-1 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded text-[10px] font-mono border border-blue-400/30 text-blue-300">
+                                RESIDENT
+                            </div>
+                        </div>
+
+                        {/* Main Info */}
+                        <div className="flex items-center gap-5 mt-2">
+                            <div className="w-20 h-20 rounded-xl bg-slate-800 border-2 border-white/10 shadow-lg overflow-hidden relative group-hover:border-blue-400/50 transition-colors shrink-0">
+                                {nft.image ? (
+                                    <img src={nft.image} alt="Resident" className="w-full h-full object-cover" />
+                                ) : (
+                                    <User className="w-full h-full p-4 text-slate-600" />
+                                )}
+                            </div>
+                            <div className="min-w-0">
+                                <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Name</p>
+                                <h3 className="text-xl font-bold tracking-wide text-white drop-shadow-md truncate">{nft.name}</h3>
+                                <p className="text-[10px] text-slate-400 uppercase tracking-wider mt-3 mb-1">Address</p>
+                                <p className="font-mono text-xs tracking-wide text-blue-200 truncate max-w-[150px]">{nft.address}</p>
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="flex justify-between items-end">
+                            <div>
+                                <p className="text-[10px] text-slate-500 mb-0.5">ISSUED DATE</p>
+                                <p className="text-xs font-medium text-slate-300">
+                                    {new Date().toLocaleDateString('ja-JP')}
+                                </p>
+                            </div>
+                            <div className="p-1 bg-white rounded-lg">
+                                <QrCode className="w-8 h-8 text-black" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Delete Button (Absolute, outside overflow hidden if needed, or inside with higher z) */}
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(nft.tokenId);
+                    }}
+                    className="absolute top-2 right-2 p-2 text-white/20 hover:text-red-500 hover:bg-white/10 rounded-full transition-colors z-30"
+                    title="削除（非表示）"
+                >
+                    <Trash2 className="w-4 h-4" />
+                </button>
+            </motion.div>
+
+            <div className="mt-4 text-center space-y-2">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/10 border border-green-500/20">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
+                    <span className="text-xs font-medium text-green-400">Active Resident</span>
+                </div>
+                <p className="text-[10px] text-slate-400 font-mono">{nft.tokenId.slice(0, 10)}...{nft.tokenId.slice(-10)}</p>
+            </div>
         </div>
     );
 };
