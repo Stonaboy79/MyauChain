@@ -341,9 +341,13 @@ export const StayFeature: React.FC<StayFeatureProps> = ({
         {
           onSuccess: (result) => {
             console.log('Mint Initial Balance TX:', result);
-            toast.success('利用登録が完了しました！');
-            // Trigger refetch
-            setRefreshTrigger(prev => prev + 1);
+            toast.success('利用登録完了！データの反映を待っています...', { duration: 5000 });
+
+            // インデックス遅延対策: 少し時間を置いて何度かリロードを試みる
+            setTimeout(() => setRefreshTrigger(prev => prev + 1), 1000);
+            setTimeout(() => setRefreshTrigger(prev => prev + 1), 3000);
+            setTimeout(() => setRefreshTrigger(prev => prev + 1), 6000);
+            setTimeout(() => setRefreshTrigger(prev => prev + 1), 9000);
           },
           onError: (err) => {
             console.error('Mint Initial Balance failed:', err);
