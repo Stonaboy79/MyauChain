@@ -6,6 +6,8 @@ import { DAOFeature } from './components/DAOFeature';
 import { LoginScreen } from './components/LoginScreen';
 import { Toaster } from 'react-hot-toast';
 import { MapPin, UserSquare2, LogOut, Users } from 'lucide-react';
+import { useDistanceTimer } from './useDistanceTimer'; // unused but kept for compilation if needed, actually removed in previous step but checking... wait, I removed it.
+import { clearDebugKeypair } from './utils/debugAuth';
 import clsx from 'clsx';
 
 const App: React.FC = () => {
@@ -20,6 +22,7 @@ const App: React.FC = () => {
   };
 
   const handleLogout = () => {
+    clearDebugKeypair(); // デバッグキーを消去
     disconnect();
     setIsAuthenticated(false);
     setUserAddress(null);
