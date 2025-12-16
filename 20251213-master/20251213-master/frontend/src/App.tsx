@@ -2,28 +2,18 @@ import React, { useState } from 'react';
 import { ConnectButton, useDisconnectWallet } from '@mysten/dapp-kit';
 import { StayFeature } from './StayFeature';
 import { ResidentCard } from './components/ResidentCard';
-import { DAOFeature } from './components/DAOFeature'; // Restored Import
-import { LoginScreen } from './components/LoginScreen'; // New Import
+import { DAOFeature } from './components/DAOFeature';
+import { LoginScreen } from './components/LoginScreen';
 import { Toaster } from 'react-hot-toast';
-import { MapPin, UserSquare2, LogOut, Users } from 'lucide-react'; // Add Users icon
-import { useDistanceTimer } from './useDistanceTimer';
-
-// import { DistanceTimerDisplay } from './DistanceTimerDisplay'; // ← 削除
+import { MapPin, UserSquare2, LogOut, Users } from 'lucide-react';
 import clsx from 'clsx';
 
-// =========================================================
-// 1. TokenInfoBoxを削除
-//    -> このコンポーネントは未使用のため、定義を削除します。
-// =========================================================
-
 const App: React.FC = () => {
-  // ... (Auth State)
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userAddress, setUserAddress] = useState<string | null>(null);
 
   const { mutate: disconnect } = useDisconnectWallet();
 
-  // ... (Login/Logout Handlers)
   const handleLoginSuccess = (address: string) => {
     setUserAddress(address);
     setIsAuthenticated(true);
@@ -36,20 +26,14 @@ const App: React.FC = () => {
     setActiveTab('checkin');
   };
 
-  // --- Original App State ---
-  // Add 'dao' to the type
   const [activeTab, setActiveTab] = useState<'checkin' | 'card' | 'dao'>('checkin');
   const [checkedIn, setCheckedIn] = useState(false);
   const [tokenCount, setTokenCount] = useState<number>(0);
-  const [tokenObjectId, setTokenObjectId] = useState<string | 'MINT_REQUIRED' | null>(null); // Added State
+  const [tokenObjectId, setTokenObjectId] = useState<string | 'MINT_REQUIRED' | null>(null);
 
-  const { distance, elapsed } = useDistanceTimer(checkedIn);
-
-  // ... (handleStopMeasurement)
-  // DAO State (Lifted up for persistence)
+  // useDistanceTimer logic moved to StayFeature.tsx
   const [residentPassId, setResidentPassId] = useState('');
 
-  // ... (handleStopMeasurement)
   const handleStopMeasurement = () => {
     setCheckedIn(false);
   };
@@ -125,11 +109,9 @@ const App: React.FC = () => {
               onCheckinSuccess={() => setCheckedIn(true)}
               tokenCount={tokenCount}
               setTokenCount={setTokenCount}
-              distance={distance}
-              elapsed={elapsed}
               checkedIn={checkedIn}
               onStopMeasurement={handleStopMeasurement}
-              tokenObjectId={tokenObjectId} // Added prop
+              tokenObjectId={tokenObjectId}
             />
           )}
           {activeTab === 'dao' && (
@@ -140,7 +122,6 @@ const App: React.FC = () => {
           )}
           {activeTab === 'card' && <ResidentCard />}
         </main>
-
 
         <Toaster
           position="top-center"

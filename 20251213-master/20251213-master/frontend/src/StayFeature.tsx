@@ -8,6 +8,7 @@ import { MapPin, CheckCircle, Loader2, Wallet } from 'lucide-react';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import Confetti from 'react-confetti';
+import { useDistanceTimer } from './useDistanceTimer';
 
 // =========================================================
 // 1. 定数とユーティリティ
@@ -45,8 +46,6 @@ type StayFeatureProps = {
   onStopMeasurement: () => void;
   tokenCount: number;
   setTokenCount: React.Dispatch<React.SetStateAction<number>>;
-  distance: number;
-  elapsed: number;
   checkedIn: boolean;
   tokenObjectId?: string | 'MINT_REQUIRED' | null; // Optional now, we handle it internally
 };
@@ -110,8 +109,6 @@ export const StayFeature: React.FC<StayFeatureProps> = ({
   onStopMeasurement,
   tokenCount,
   setTokenCount,
-  distance,
-  elapsed,
   checkedIn,
   // tokenObjectId prop is ignored/shadowed by internal state logic
 }) => {
@@ -124,6 +121,22 @@ export const StayFeature: React.FC<StayFeatureProps> = ({
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
   const [stayId, setStayId] = useState<number | null>(null);
+
+  // === タイマーと距離判定ロジック ===
+  // checkedInがtrueになった時点のlocationを基準に、50m範囲内かを判定
+  const { distance, elapsed, isWithinRange } = useDistanceTimer(checkedIn, location);
+
+  // 範囲外に出た時の警告
+  useEffect(() => {
+    if (checkedIn && !isWithinRange) {
+      toast.error('範囲外です！トークン付与が停止中...', {
+        id: 'range-warning',
+        icon: '⚠️',
+      });
+    } else if (checkedIn && isWithinRange) {
+      toast.dismiss('range-warning');
+    }
+  }, [checkedIn, isWithinRange]);
 
   // Internal management of tokenObjectId
   const [internalTokenObjectId, setInternalTokenObjectId] = useState<string | 'MINT_REQUIRED' | null>(null);
@@ -442,8 +455,12 @@ export const StayFeature: React.FC<StayFeatureProps> = ({
               <Marker position={[location.lat, location.lng]} />
               <Circle
                 center={[location.lat, location.lng]}
-                radius={30}
-                pathOptions={{ color: '#2563eb', fillColor: '#60a5fa', fillOpacity: 0.2 }}
+                radius={50} // 30m -> 50m に変更
+                pathOptions={{
+                  color: isWithinRange ? '#2563eb' : '#ef4444',
+                  fillColor: isWithinRange ? '#60a5fa' : '#f87171',
+                  fillOpacity: 0.2
+                }}
               />
             </>
           )}

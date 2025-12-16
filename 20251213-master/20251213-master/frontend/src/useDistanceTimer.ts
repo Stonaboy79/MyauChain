@@ -1,115 +1,93 @@
 import { useEffect, useRef, useState } from 'react';
 
-// Haversine公式または球面三角法の法則を使用した距離計算関数
+// Haversine公式
 function getDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371e3; // 地球の半径 (メートル)
   const toRad = (x: number) => (x * Math.PI) / 180;
-  
+
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);
-  
+
   const a =
     Math.sin(dLat / 2) ** 2 +
     Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    
-  return R * c; // 距離 (メートル)
+
+  return R * c;
 }
 
-export function useDistanceTimer(start: boolean) {
-  const [distance, setDistance] = useState(0);
+export function useDistanceTimer(start: boolean, initialPos: { lat: number, lng: number } | null) {
+  const [distanceFromStart, setDistanceFromStart] = useState(0); // 開始地点からの距離
   const [elapsed, setElapsed] = useState(0);
-  
-  // === 修正点: 累積距離計算のために、最後に計測した位置を保存する Ref を導入 ===
-  const lastPos = useRef<{ lat: number; lon: number } | null>(null);
-  
-  // GPS監視ID
+  const [isWithinRange, setIsWithinRange] = useState(true); // 範囲内かどうか
+
   const watchId = useRef<number | null>(null);
 
-  // --- 1. 時間のカウントアップロジック (独立したタイマー) ---
+  // --- 1. 時間のカウントアップ (範囲内のみ) ---
   useEffect(() => {
     let intervalId: ReturnType<typeof setInterval> | null = null;
-    
-    if (start) {
-      // 計測開始時にリセット
-      setElapsed(0); 
-      // 1秒ごとに elapsed をインクリメント
+
+    if (start && isWithinRange) {
       intervalId = setInterval(() => {
-        setElapsed((prevElapsed) => prevElapsed + 1);
+        setElapsed((prev) => prev + 1);
       }, 1000);
-    } else {
-      // 計測停止時
-      if (intervalId !== null) {
-        clearInterval(intervalId);
-      }
-      setElapsed(0);
     }
 
     return () => {
-      if (intervalId !== null) {
-        clearInterval(intervalId);
-      }
+      if (intervalId !== null) clearInterval(intervalId);
     };
-  }, [start]); // start の変化でのみ実行
+  }, [start, isWithinRange]);
 
-  // --- 2. 距離の累積計測ロジック ---
+  // --- 2. 距離監視と範囲判定 ---
   useEffect(() => {
-    if (start) {
-      // 計測開始時にリセット
-      setDistance(0);
-      lastPos.current = null; // 開始地点をリセット
+    if (start && initialPos) {
+      // 初期化
+      setDistanceFromStart(0);
+      setIsWithinRange(true);
 
       watchId.current = navigator.geolocation.watchPosition(
         (pos) => {
-          const { latitude, longitude } = pos.coords;
-          const currentPos = { lat: latitude, lon: longitude };
+          const currentLat = pos.coords.latitude;
+          const currentLng = pos.coords.longitude;
 
-          if (lastPos.current) {
-            // === 修正点: 前回位置 (lastPos) から現在の位置までの距離を計算 ===
-            const traveledDistance = getDistance(
-              lastPos.current.lat,
-              lastPos.current.lon,
-              currentPos.lat,
-              currentPos.lon
-            );
-            
-            // === 修正点: 総合計距離に加算 (累積) ===
-            setDistance((prevDistance) => prevDistance + traveledDistance);
+          // 開始地点からの距離を計算
+          const dist = getDistance(
+            initialPos.lat,
+            initialPos.lng,
+            currentLat,
+            currentLng
+          );
+
+          setDistanceFromStart(dist);
+
+          // 50m制限判定
+          if (dist <= 50) {
+            setIsWithinRange(true);
+          } else {
+            setIsWithinRange(false);
           }
-          
-          // 現在位置を、次回の「前回位置」として保存
-          lastPos.current = currentPos;
         },
-        (err) => {
-          console.error("Geolocation watch error:", err);
-          // エラー処理（必要に応じて計測を停止するなどの対応を追加）
-        },
-        { 
-          enableHighAccuracy: true, 
-          timeout: 10000, 
-          maximumAge: 0 // キャッシュを使わず常に新しい値を取得
-        }
+        (err) => console.error("GPS Watch Error:", err),
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
       );
 
     } else {
-      // 計測停止時
+      // 停止時
       if (watchId.current !== null) {
         navigator.geolocation.clearWatch(watchId.current);
         watchId.current = null;
       }
-      // 状態をクリーンアップ
-      lastPos.current = null;
-      // distanceは0にリセットしない (App.tsxでリセットされることを想定)
+      if (!start) {
+        setElapsed(0);
+        setDistanceFromStart(0);
+        setIsWithinRange(true);
+      }
     }
 
     return () => {
-      // クリーンアップ
-      if (watchId.current !== null) {
-        navigator.geolocation.clearWatch(watchId.current);
-        watchId.current = null;
-      }
+      if (watchId.current !== null) navigator.geolocation.clearWatch(watchId.current);
     };
-  }, [start]); // start の変化でのみ実行
+  }, [start, initialPos]); // initialPos が変わったら再監視
 
-  return { distance, elapsed };
+  return { distance: distanceFromStart, elapsed, isWithinRange };
 }
