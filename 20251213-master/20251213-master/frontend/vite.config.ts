@@ -30,6 +30,7 @@ export default defineConfig({
     })
   ],
   server: {
+    host: true, // 外部アクセスを許可
     port: 5174,
     strictPort: true,
     proxy: {
