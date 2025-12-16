@@ -209,23 +209,30 @@ export const DAOFeature: React.FC<DAOFeatureProps> = ({ residentPassId, setResid
         }
       }
 
-      // Calculate Unsynced: (Accrued in Stay) - (Already in DAO)
-      // If Dao has more (e.g. airdrop), then unsynced is 0.
-      let diff = stayBalance - onChainVal;
+      // Demo Masking (for Diff calc)
+      let displayOnChain = onChainVal - gOffset;
+      if (displayOnChain < 0n) displayOnChain = 0n;
+
+      // Calculate Unsynced: (Accrued in Stay) - (Already in DAO [Masked])
+      let diff = stayBalance - displayOnChain;
       if (diff < 0n) diff = 0n;
 
-      offChainTotal = diff; // We reuse this state variable for "Unsynced"
-      console.log('refreshGlobal: StayBalance=', stayBalance, 'DAO Balance=', onChainVal, 'Diff(Unsynced)=', diff);
+      offChainTotal = diff;
+      console.log('refreshGlobal: StayBalance=', stayBalance, 'Masked DAO=', displayOnChain, 'Diff(Unsynced)=', diff);
 
     } catch (e) {
       console.error('Failed to fetch Stay TokenBalance', e);
     }
 
-    setGOnChainBalance(onChainVal);
-    setGOffChainTotal(offChainTotal); // representing Unsynced amount
+    // Demo Masking (Visual)
+    let displayOnChain = onChainVal - gOffset;
+    if (displayOnChain < 0n) displayOnChain = 0n;
 
-    // Total Display = DAO Balance + Unsynced (Approx total accumulated)
-    setGBalance(onChainVal + offChainTotal);
+    setGOnChainBalance(displayOnChain);
+    setGOffChainTotal(offChainTotal);
+
+    // Total Display = Masked DAO + Unsynced
+    setGBalance(displayOnChain + offChainTotal);
   };
 
   // =========================
@@ -284,8 +291,11 @@ export const DAOFeature: React.FC<DAOFeatureProps> = ({ residentPassId, setResid
           }
         }
 
-        // Unsynced = StayBalance - AlreadySynced(onChainVal)
-        let diff = stayBalance - onChainVal;
+        // Masking for Diff
+        let displayOnChainForDiff = onChainVal - rOffset;
+        if (displayOnChainForDiff < 0n) displayOnChainForDiff = 0n;
+
+        let diff = stayBalance - displayOnChainForDiff;
         if (diff < 0n) diff = 0n;
         offChainTotal = diff;
 
@@ -293,8 +303,11 @@ export const DAOFeature: React.FC<DAOFeatureProps> = ({ residentPassId, setResid
         console.error('Failed to fetch Stay TokenBalance for Region', e);
       }
 
-      // Total = OnChain + OffChain
-      setRBalance(onChainVal + offChainTotal);
+      // Masking for Display
+      let displayOnChain = onChainVal - rOffset;
+      if (displayOnChain < 0n) displayOnChain = 0n;
+
+      setRBalance(displayOnChain + offChainTotal);
 
       // 3. Proposals
       if (content?.proposals?.fields?.id?.id && content?.next_proposal_id) {
